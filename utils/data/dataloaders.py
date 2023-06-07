@@ -12,10 +12,10 @@ class MissionData:
         Class to load and store mission data.
 
         Arguments:
-            mission_folder (str)    : The folder path where the mission data is located.
+            root_folder (str)    : The folder path where the mission data is located.
             mission_name (str)      : The name of the mission. Should be one of the acceptable mission names.
-            year (str)              : The year of the mission.
-            month (str)             : The month of the mission.
+            years (str)              : The year of the mission.
+            months (str)             : The month of the mission.
 
         Returns:
             None
@@ -127,4 +127,33 @@ class MissionData:
 
 class MissionAgnosticData:
     def __init__(self, root_folder : str, mission_names : List[str], years : List[str], months : List[str]):
+        """
+        Class to load and store mission agnostic data. (i.e data that is not specific to a single mission.)
+
+        Arguments:
+            root_folder (str)    : The folder path where the mission data is located.
+            mission_names (str)      : The name of the mission. Should be one of the acceptable mission names.
+            years (str)              : The year of the mission.
+            months (str)             : The month of the mission.
+
+        Returns:
+            None
+
+        Raises:
+        """
+
+        # check that provided mission name is valid
+        available_missions = ['e1', 'e1g', 'e2', 'tp', 'tpn', 
+                              'g2', 'j1', 'j1n', 'j1g', 'j2', 
+                              'j2n', 'j2g', 'j3', 'j3n', 'en', 
+                              'enn', 'c2', 'c2n', 'al', 'alg', 
+                              'h2a', 'h2ag', 'h2b', 'h2c', 's3a', 
+                              's3b', 's6a-hr', 's6a-lr']
+
+        if set(mission_names).issubset(set(available_missions)):
+            pass
+        else:
+            raise ValueError("Invalid mission name provided. Mission names must be in: {}".format(available_missions))
+
+        # set class attributes
         self.data = xr.concat([MissionData(root_folder, mission_name, years, months).mission_data for mission_name in mission_names], dim = 'time')
