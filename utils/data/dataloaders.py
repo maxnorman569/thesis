@@ -57,6 +57,11 @@ class MissionData:
         Raises:
             ValueError                      : If no data files are found in the provided directory.
         """
+        
+        # print mission name
+        print("\nLoading data for mission: '{}'".format(self.mission_name))
+
+        # load mission data
         datasets = []
         for year in self.years:
             for month in self.months:
@@ -68,14 +73,16 @@ class MissionData:
                 if os.path.isdir(data_dir):
                     pass
                 else:
-                    raise ValueError('Directory does not exist: {}'.format(data_dir))
+                    print('> {}-{} | Directory does not exist: {}'.format(year, month, data_dir))
+                    continue
 
                 # get data files
                 files = [os.path.join(data_dir, f) for f in os.listdir(data_dir)]
 
-                # raise error if no data files found
+                # check data files exist
                 if len(files) == 0:
-                    raise ValueError('No data files found in directory: {}'.format(data_dir))
+                    print('> {}-{} | Data files do not exist: {}'.format(year, month, data_dir))
+                    continue
                 
                 # load data files as xarray datasets
                 for file in files:
@@ -83,8 +90,41 @@ class MissionData:
                         datasets.append(xr.open_dataset(file))
                     except:
                         pass
+                
+                # print completion message
+                print('> {}-{} | completed'.format(year, month))
 
         # concatenate the datasets along the time dimension
-        mission_data = xr.concat(datasets, dim='time')
+        if len(datasets) == 0:
+            return xr.Dataset(
+                coords=dict(
+                        time=None, 
+                        longitude=None, 
+                        latitude=None),
+                data_vars=dict(
+                        cycle = None, 
+                        track = None, 
+                        sla_unfiltered = None, 
+                        sla_filtered = None,
+                        dac = None, 
+                        ocean_tide = None, 
+                        internal_tide = None, 
+                        lwe = None, 
+                        mdt = None, 
+                        tpa_correction = None,),
+                attrs=dict(
+                        description="Empty dataset, no data found."),
+            )
+        
+        elif len(datasets) == 1:
+            mission_data = datasets[0]
+
+        else:
+            mission_data = xr.concat(datasets, dim = 'time')
 
         return mission_data
+    
+
+class MissionAgnosticData:
+    def __init__(self, root_folder : str, mission_names : List[str], years : List[str], months : List[str]):
+        self.data = xr.concat([MissionData(root_folder, mission_name, years, months).mission_data for mission_name in mission_names], dim = 'time')
