@@ -193,3 +193,58 @@ class MissionAgnosticData:
 
         # set class attributes
         self.data = xr.concat([MissionData(root_folder, mission_name, years, months, latitude_range, longitude_range).mission_data for mission_name in mission_names], dim = 'time')
+
+
+class SimulationData:
+
+    def __init__(self, 
+                 root_folder : str, 
+                 year : str, 
+                 month : str, 
+                 day : str,
+                 ):
+        """ 
+        Class to lead and store simulation data in the Gulf Stream
+
+        Arguments:
+            root_folder (str)       : The folder path where the mission data is located.
+            year (str)              : The year of the simulation. (i.e 'YYYY')
+            month (str)             : The months of the simulation. (i.e 'MM')
+            day (str)               : The day of the simulation. (i.e 'DD')
+
+        Returns:
+            None
+
+        Raises:
+            ValueError              : If the provided arguments do not correspond to a simulation.
+        """
+
+        # check that file exists
+        sim_file_name = f'NATL60-CJM165_GULFSTREAM_y{year}m{month}d{day}.1h_SSH.nc'
+        sim_file_path = os.path.join(root_folder, sim_file_name)
+        if not os.path.exists(sim_file_path):
+            raise ValueError(f'File {sim_file_path} does not exist.')
+        
+        # set class attributes
+        self.simulation_year = year
+        self.simulation_month = month
+        self.simulation_day = day
+        self.simulation_name = f"NATL60-CJM165_GULFSTREAM_y{year}m{month}d{day}"
+        self.simulation_file_path = sim_file_path
+        self.simulation_data = self.load_data()
+
+    def load_data(self, ):
+        """ 
+        Load the simulation data into an xarray dataset.
+
+        Arguments:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
+        ds = xr.open_dataset(self.simulation_file_path)
+        return ds
