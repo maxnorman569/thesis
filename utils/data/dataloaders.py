@@ -1,9 +1,13 @@
+# numeric imports
+import numpy as np
+
 # data imports
 import xarray as xr
 
 # misc imports
 import os
 from typing import List, Tuple
+from abc import ABC, abstractmethod
 
 class MissionData:
 
@@ -14,7 +18,7 @@ class MissionData:
                  months : List[str], 
                  latitude_range : Tuple[float, float] = (-90., 90.),
                  longitude_range : Tuple[float, float] = (-180., 180.)
-                 ):
+                 ) -> 'MissionData':
         """
         Class to load and store mission data.
 
@@ -195,7 +199,7 @@ class MissionAgnosticData:
         self.data = xr.concat([MissionData(root_folder, mission_name, years, months, latitude_range, longitude_range).mission_data for mission_name in mission_names], dim = 'time')
 
 
-class SimulationData:
+class SimulationData(ABC):
 
     def __init__(self, 
                  root_folder : str, 
@@ -231,11 +235,28 @@ class SimulationData:
         self.simulation_day = day
         self.simulation_name = f"NATL60-CJM165_GULFSTREAM_y{year}m{month}d{day}"
         self.simulation_file_path = sim_file_path
-        self.simulation_data = self.load_data()
+        self.simulation_tracked_observations = None
 
-    def load_data(self, ):
+        @abstractmethod
+        def load_data(self,):
+            pass
+
+
+class SimulationDataDay(SimulationData):
+
+    """ Class inherits from SimulationData to lead simulation data for a whole day. (24h) """
+
+    def __init__(self, 
+                 root_folder : str, 
+                 year : str, 
+                 month : str, 
+                 day : str,):
+        super().__init__(root_folder, year, month, day) 
+        self.data = self.load_data()
+
+    def load_data(self, ) -> xr.Dataset:
         """ 
-        Load the simulation data into an xarray dataset.
+        Load the all day simulation data into an xarray dataset.
 
         Arguments:
             None
@@ -247,4 +268,155 @@ class SimulationData:
             None
         """
         ds = xr.open_dataset(self.simulation_file_path)
+
         return ds
+    
+
+class SimulationDataHour(SimulationData):
+
+    """ Class inherits from SimulationData to lead simulation data for a specific hour. """
+
+    def __init__(self, 
+                 root_folder : str, 
+                 year : str, 
+                 month : str, 
+                 day : str,
+                 hour : int):
+        super().__init__(root_folder, year, month, day,)  # Call the parent class constructor
+        self.hour = hour
+        self.data = self.load_data()
+
+    def load_data(self,) -> xr.Dataset:
+        """ 
+        Load a specific hour from an all day simulation into an xarray dataset.
+
+        Arguments:
+            hour (int)              : The hour of the simulation to load. (i.e 0 - 23)
+
+        Returns:
+            None
+
+        Raises:
+            ValueError             : If the provided hour is not between 0 and 23.
+        """
+        # check that hour is valid
+        if self.hour < 0 or self.hour > 23:
+            raise ValueError(f'Hour must be between 0 and 23. Provided hour: {self.hour}')
+        
+        # load data set
+        ds = xr.open_dataset(self.simulation_file_path)
+
+        # select the hour
+        ds = ds.isel(time = self.hour)
+
+        return ds
+    
+    def generate_track(
+        self,
+        trajectory_gradient : int,
+        track_sparsity : float,
+        observation_sparisty : int,
+        ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Generates synthetic satellite track observations for a SimulationDataHour object.  
+
+        # Arguments:
+            data (SimulationDataHour)                   : The SimulationDataHour object to generate tracks for.
+            trajectory_gradient (int)                   : The gradient of the satelite trajectory (i.e 0 for horizontal/vertical lines).
+            track_sparsity (float)                      : The spacing between tracks in degrees measured on the longitude. (i.e 1 for 1 track per degree, 0.5 for 2 tracks per degree, etc)
+            observation_sparisty (int)                  : How many observations to "skip" on the track (i.e 5 selects every 5th simulation point along the track). Choose 0 for no sparsity.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray, np.ndarray]   : A tuple containing of the track (longitude, latitude, SSH) data.
+        """
+
+        # check that track sparsity is valid
+        if (track_sparsity <= 0) or (track_sparsity > 10):
+            raise ValueError(f'Track sparsity must be between 0 and 10. Provided track sparsity: {track_sparsity}')
+        
+        # meta
+        DEGREE_RANGE = 10
+        LON_DIM = 600
+        LAT_DIM = 600
+
+        # data
+        track_lon_idxs = np.empty(0)
+        track_lat_idxs = np.empty(0)
+
+        ############################
+        # TRACKS FROM LONGITUDE
+        ############################
+
+        # lon index range
+        max_lon_idx = int(LON_DIM / trajectory_gradient)
+
+        # compute track spacing
+        n_lon_tracks = int((DEGREE_RANGE / track_sparsity))
+        lon_index_shift_size =  track_sparsity * (LON_DIM / DEGREE_RANGE) 
+        
+        # generate tracks
+        for i in range(n_lon_tracks):
+            
+            # compute the start and end indices for the longitude
+            lon_index_shift = int(i * lon_index_shift_size)
+            lon_idx_start = int(lon_index_shift)
+            lon_idx_end = int(max_lon_idx + lon_index_shift) if int(max_lon_idx + lon_index_shift) <= 600 else 600
+
+            # get lon indxs
+            forward_lon_idxs = np.repeat(np.arange(lon_idx_start, lon_idx_end), trajectory_gradient)
+            backward_lon_idxs = np.repeat(np.arange(lon_idx_start, lon_idx_end), trajectory_gradient)
+            lon_idxs = np.append(forward_lon_idxs, backward_lon_idxs)
+            track_lon_idxs = np.append(track_lon_idxs, lon_idxs)
+
+            # get lat indxs
+            forward_lat_idxs = np.arange(len(forward_lon_idxs))
+            backward_lat_idx = np.arange(-1, -len(backward_lon_idxs)-1, -1)
+            lat_idxs = np.append(forward_lat_idxs, backward_lat_idx)
+            track_lat_idxs = np.append(track_lat_idxs, lat_idxs)
+
+        ############################
+        # TRACKS FROM LATITUDE
+        ############################
+
+        # lon index range
+        max_lon_idx = int(LON_DIM / trajectory_gradient)
+
+        # adjust the sparisty
+        lat_track_sparsity = track_sparsity * trajectory_gradient
+
+        # compute the track spacing
+        n_lat_tracks = int((DEGREE_RANGE / lat_track_sparsity))
+        lat_index_shift_size =  lat_track_sparsity * (LAT_DIM / DEGREE_RANGE) 
+
+        for j in range(n_lat_tracks):
+
+            # compute the start and end indices for the longitude
+            lat_index_shift = int(j * lat_index_shift_size)
+            lat_idx_start = int(lat_index_shift)
+            lat_idx_end = LAT_DIM
+
+            # get lat indxs
+            forward_lat_idxs = np.arange(lat_idx_start , lat_idx_end)
+            backward_lat_idx = np.arange(-lat_idx_start, -LAT_DIM, -1)
+            lat_idxs = np.append(forward_lat_idxs, backward_lat_idx)
+            track_lat_idxs = np.append(track_lat_idxs, lat_idxs)
+
+            # get lon indxs
+            forward_lon_idxs = np.repeat(np.arange(0, max_lon_idx), trajectory_gradient)[:len(forward_lat_idxs)]
+            backward_lon_idxs = np.repeat(np.arange(0, max_lon_idx), trajectory_gradient)[:len(backward_lat_idx)]
+            lon_idxs = np.append(forward_lon_idxs, backward_lon_idxs)
+            track_lon_idxs = np.append(track_lon_idxs, lon_idxs)
+
+        ############################
+        # UNPACK DATA
+        ############################
+        
+        track_lon = self.data.lon.values[track_lon_idxs.astype(int)]
+        track_lat = self.data.lat.values[track_lat_idxs.astype(int)]
+        track_ssh = self.data.sossheig.values[track_lat_idxs.astype(int), track_lon_idxs.astype(int)]
+
+        if observation_sparisty == 0:
+            return track_lon, track_lat, track_ssh
+
+        else:
+            return track_lon[::observation_sparisty], track_lat[::observation_sparisty], track_ssh[::observation_sparisty]
