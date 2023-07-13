@@ -8,7 +8,7 @@ class FourierBasis:
         self.a = a
         self.b = b
         self.M = M
-        self.omegas = torch.nn.Parameter(torch.tensor([(2 * torch.pi * m) / (b - a) for m in range(M+1)]))
+        self.omegas = torch.tensor([(2 * torch.pi * m) / (b - a) for m in range(M+1)])
 
     def __call__( self, x : float ) -> torch.Tensor:
         
