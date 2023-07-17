@@ -1,8 +1,7 @@
 import torch    
 
-import spectra
-
-from basis import FourierBasis
+from VFF import spectra
+from VFF.basis import FourierBasis
     
 
 def _alpha( 
@@ -10,7 +9,7 @@ def _alpha(
         sigma : float, 
         lengthscale : float, 
         a : float, 
-        b : float 
+        b : float, 
         ) -> torch.Tensor:
     """
     Computes alpha half of the Kuu representation for the Matérn 1/2 covarainces
@@ -40,7 +39,7 @@ def _alpha(
 
 def _beta( 
         omegas : torch.Tensor, 
-        sigma : float 
+        sigma : float,
         ) -> torch.Tensor:
     """
     Computes the beta half of the Kuu representation for the Matérn 1/2 covarainces
@@ -65,12 +64,12 @@ def _beta(
     return beta
 
 
-def maternal_12_Kuu(
+def matern_12_Kuu(
           omegas : torch.Tensor, 
           sigma : float, 
           lengthscale : float, 
           a : float, 
-          b : float
+          b : float,
           ) -> torch.Tensor:
     """
     Computes the Kuu using the representation given by (62) in the VFF paper for the Matérn 1/2 covarainces
@@ -100,7 +99,7 @@ def maternal_12_Kuu(
 
 def matern_12_Kuf( 
         fourier_basis : 'FourierBasis', 
-        x : float 
+        x : float,
         ) -> torch.Tensor:
     """ 
     Returns the cross-covariance between the domains 
@@ -114,7 +113,3 @@ def matern_12_Kuf(
     """
 
     return fourier_basis(x)
-
-
-
-

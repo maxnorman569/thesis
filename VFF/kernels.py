@@ -5,7 +5,7 @@ import math
 def matern_12( 
         tau : torch.Tensor,
         sigma : float,
-        legnthscale : float,
+        lengthscale : float,
         ) -> torch.Tensor:
 
         """
@@ -20,7 +20,7 @@ def matern_12(
             torch.Tensor: Kernel weighting for distance tau
         """
         # compute the kernel
-        kernel = (sigma ** 2) * torch.exp(-tau / legnthscale)
+        kernel = (sigma ** 2) * torch.exp(-tau / lengthscale)
 
         return kernel
 
