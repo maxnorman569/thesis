@@ -4,7 +4,7 @@ import math
 
 def matern_12( 
         omega : torch.Tensor, 
-        sigma : float, 
+        scalesigma : float, 
         lengthscale : float 
         ) -> torch.Tensor:
     """
@@ -12,7 +12,7 @@ def matern_12(
 
     Arguments:
         omega (torch.Tensor)    : frequency
-        sigma (float)           : amplitude hyperparameter
+        scalesigma (float)      : amplitude hyperparameter
         lengthscale (float)     : lengthscale hyperparameter
 
     Returns:
@@ -22,7 +22,7 @@ def matern_12(
     lmbda = 1 / lengthscale
 
     # compute spectral density
-    numerator = 2 * (sigma ** 2) * lmbda
+    numerator = 2 * (scalesigma ** 2) * lmbda
     denominator = (lmbda ** 2) + (omega ** 2)
     spectral_density = numerator / denominator
 
