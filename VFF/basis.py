@@ -3,44 +3,43 @@ import math
 from abc import ABC, abstractmethod
 
 class FourierBasis(ABC):
-    
     """ Constructs a Fourier Basis for Variational Fourier Features """
 
-    def __init__( self, n_frequencies : int, a : float, b : float, lengthscale : float):
-        self.M = n_frequencies # the number of omegas to use
+    def __init__(self, n_frequencies: int, a: float, b: float, lengthscale: float):
+        self.M = n_frequencies  # the number of omegas to use
         self.a = a
         self.b = b
-        self.lengthscale = lengthscale 
+        self.lengthscale = lengthscale
         self.omegas = (2 * torch.pi) * torch.arange(self.M + 1) / (b - a)
 
-    def _domain_maks(self, X : torch.Tensor) -> torch.Tensor:
+    def _domain_maks(self, X: torch.Tensor) -> torch.Tensor:
         """ Returns a bool mask for input points of X lying in the domain [a, b] """
         # identify the points in the domain
         domain_mask = torch.logical_and(X >= self.a, X < self.b)
         return domain_mask
 
     @abstractmethod
-    def _real_outside_domain(self, x_outside : torch.Tensor) -> torch.Tensor:
+    def _real_outside_domain(self, x_outside: torch.Tensor) -> torch.Tensor:
         """ Evaluates the real part of the Fourier Basis at a point outside the domain [a, b] """
         pass
 
     @abstractmethod
-    def _imaginary_outside_domain(self, x_outside : torch.Tensor) -> torch.Tensor:
+    def _imaginary_outside_domain(self, x_outside: torch.Tensor) -> torch.Tensor:
         pass
 
-    def _real_inside_domain(self, x_inside : torch.Tensor) -> torch.Tensor:
+    def _real_inside_domain(self, x_inside: torch.Tensor) -> torch.Tensor:
         """ Evaluates the real part of the Fourier Basis at a point inside the domain [a, b] """
         # evaluate the basis at x
         cosines = torch.cos(self.omegas * (x_inside - self.a))
         return cosines
 
-    def _imaginary_inside_domain(self, x_inside : torch.Tensor) -> torch.Tensor:
+    def _imaginary_inside_domain(self, x_inside: torch.Tensor) -> torch.Tensor:
         """ Evaluates the imaginary part of the Fourier Basis at a point inside the domain [a, b] """
         # evaluate the basis at x
         sines = torch.sin(self.omegas[1:] * (x_inside - self.a))
         return sines
 
-    def _inside_domain(self, x_inside : torch.Tensor) -> torch.Tensor:
+    def _inside_domain(self, x_inside: torch.Tensor) -> torch.Tensor:
         """ Evaluates the basis for points inside the domain [a, b] """
         # evaluate the basis at x
         real_basis = self._real_inside_domain(x_inside)
@@ -48,18 +47,17 @@ class FourierBasis(ABC):
         basis_at_x = torch.cat((real_basis, imaginary_basis))
 
         return basis_at_x
-    
-    def _outside_domain(self, x_outside : torch.Tensor) -> torch.Tensor:
+
+    def _outside_domain(self, x_outside: torch.Tensor) -> torch.Tensor:
         """ Evaluates the basis for points outside the domain [a, b] """
         # evaluate the basis at x
         real_basis = self._real_outside_domain(x_outside)
         imaginary_basis = self._imaginary_outside_domain(x_outside)
         basis_at_x = torch.cat((real_basis, imaginary_basis))
-        
+
         return basis_at_x
 
-    def __call__( self, X : float ) -> torch.Tensor:
-        
+    def __call__(self, X: float) -> torch.Tensor:
         """ Evaluates the Fourier Basis at a point x """
 
         domain_mask = self._domain_maks(X)
@@ -73,18 +71,17 @@ class FourierBasis(ABC):
             else:
                 basis_at_x.append(self._outside_domain(x))
 
-        return torch.vstack((basis_at_x))
-    
+        return torch.vstack((basis_at_x)).T
+
 
 class FourierBasisMatern12(FourierBasis):
-    
     """ Constructs a Fourier Basis for Variational Fourier Features for a Matern 1/2 Kernel """
 
-    def __init__(self, n_frequencies : int, a : float, b : float, lengthscale : float):
-        super().__init__(n_frequencies, a, b, lengthscale) 
+    def __init__(self, n_frequencies: int, a: float, b: float, lengthscale: float):
+        super().__init__(n_frequencies, a, b, lengthscale)
         self.lmbda = 1 / lengthscale
 
-    def _real_outside_domain(self, x_outside : torch.Tensor) -> torch.Tensor:
+    def _real_outside_domain(self, x_outside: torch.Tensor) -> torch.Tensor:
         """ Evaluates the real part of the Fourier Basis at a point outside the domain [a, b] """
         # construct real basis for x outside domain
         r = min(abs(x_outside - self.a), abs(x_outside - self.b))
@@ -92,7 +89,7 @@ class FourierBasisMatern12(FourierBasis):
         real_phi = torch.ones(self.M + 1) * phi_m
         return real_phi
 
-    def _imaginary_outside_domain(self, x_outside : torch.Tensor) -> torch.Tensor:
+    def _imaginary_outside_domain(self, x_outside: torch.Tensor) -> torch.Tensor:
         """ Evaluates the imaginary part of the Fourier Basis at points outside the domain [a, b] """
         return torch.zeros(self.M)
     

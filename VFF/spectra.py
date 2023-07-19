@@ -2,11 +2,11 @@ import torch
 
 import math
 
-def matern_12( 
-        omega : torch.Tensor, 
-        scalesigma : float, 
-        lengthscale : float 
-        ) -> torch.Tensor:
+def matern_12(
+        omega: torch.Tensor,
+        scalesigma: float,
+        lengthscale: float
+) -> torch.Tensor:
     """
     Computes the spectra corersponding to the Matérn 1/2 covariances
 
