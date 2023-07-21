@@ -45,7 +45,6 @@ class FourierBasis(ABC):
         real_basis = self._real_inside_domain(x_inside)
         imaginary_basis = self._imaginary_inside_domain(x_inside)
         basis_at_x = torch.cat((real_basis, imaginary_basis))
-
         return basis_at_x
 
     def _outside_domain(self, x_outside: torch.Tensor) -> torch.Tensor:
@@ -54,23 +53,18 @@ class FourierBasis(ABC):
         real_basis = self._real_outside_domain(x_outside)
         imaginary_basis = self._imaginary_outside_domain(x_outside)
         basis_at_x = torch.cat((real_basis, imaginary_basis))
-
         return basis_at_x
 
     def __call__(self, X: float) -> torch.Tensor:
         """ Evaluates the Fourier Basis at a point x """
-
         domain_mask = self._domain_maks(X)
-
         basis_at_x = []
-
         for i, x in enumerate(X):
             # evaluate the basis at x
             if domain_mask[i]:
                 basis_at_x.append(self._inside_domain(x))
             else:
                 basis_at_x.append(self._outside_domain(x))
-
         return torch.vstack((basis_at_x)).T
 
 
